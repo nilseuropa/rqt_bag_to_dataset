@@ -1,6 +1,8 @@
 # Neural Data Shape (.NDS) file format
 
-For a general model loader the following information must be accessible before attempting to parse the network:
+:construction: work in progress :construction:
+
+For a general model loader the following information must be accessible before attempting to parse a network:
 
 * input layer data shape ( eg. angular velocity on axis Z = 1 + 320x240x3 camera stream )
   * topic/s to subscribe to
