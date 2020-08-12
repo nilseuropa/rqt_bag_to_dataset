@@ -1,0 +1,17 @@
+<library path="src">
+  <class name="RosBagToDataset" type="bag_to_dls.bag_to_dls.RosBagToDataset" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      A Python GUI plugin to convert bag files to datasets.
+    </description>
+    <qtgui>
+      <group>
+        <label>Neural Tools</label>
+        <icon type="theme">folder</icon>
+        <statustip>Neural network training and deployment.</statustip>
+      </group>
+      <label>Bag to Dataset</label>
+      <icon type="theme">applications-other</icon>
+      <statustip>A Python GUI plugin to convert bag files to datasets.</statustip>
+    </qtgui>
+  </class>
+</library>
