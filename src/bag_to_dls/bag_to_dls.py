@@ -94,30 +94,36 @@ class RosBagToDataset(QObject):
                 array_size = 0
         return type_str, array_size
 
-    def _recursive_create_widget_items(self, parent, topic_name, type_name, message):
+    def _recursive_create_widget_items(self, parent, topic_name, type_name, message, leaf=True):
 
+        #print("Topic name is ",topic_name)
         if parent is self._widget.topics_tree_widget:
             topic_text = topic_name
-            item = QTreeWidgetItem(parent)
         else:
             topic_text = topic_name.split('/')[-1]
             if '[' in topic_text:
                 topic_text = topic_text[topic_text.index('['):]
+        
+        if leaf:
             item = TreeWidgetItem(self._toggle_monitoring, topic_name, parent)
+        else: 
+            item = QTreeWidgetItem(parent)
 
         item.setText(self._column_index['topic'], topic_text)
         item.setText(self._column_index['type'], type_name)
         item.setText(self._column_index['buffer_size'], "1")
         item.setData(0, Qt.UserRole, topic_name)
-
         self._tree_items[topic_name] = item
+        
         # slots: message types that compose the parent message
         if hasattr(message, '__slots__') and hasattr(message, '_slot_types'):
+            #print("This thing has slots and slot_types")
             for slot_name, type_name in zip(message.__slots__, message._slot_types):
+                #print("S/T: ", slot_name, "/", type_name)
                 self._recursive_create_widget_items(
                 item, topic_name + '/' + slot_name, type_name, getattr(message, slot_name))
-
         else:
+            #print("Trying to extract array info or complex type info")
             base_type_str, array_size = self._extract_array_info(type_name)
             try:
                 base_instance = roslib.message.get_message_class(base_type_str)()
@@ -125,16 +131,31 @@ class RosBagToDataset(QObject):
                 base_instance = None
             if array_size is not None and hasattr(base_instance, '__slots__'):
                 for index in range(array_size):
+                    print("Recursing into array") # NEVER HAPPENS!
                     self._recursive_create_widget_items(
                         item, topic_name + '[%d]' % index, base_type_str, base_instance)
+            elif hasattr(base_instance, '__slots__') and hasattr(base_instance, '_slot_types'):
+                #print("Recursing into complex type")
+                for b_slot_name, b_type_name in zip(base_instance.__slots__, base_instance._slot_types):
+                    #print("Complex::S/T: ", b_slot_name, "/", b_type_name)
+                    self._recursive_create_widget_items(item, topic_name + '/' + b_slot_name, b_type_name, getattr(base_instance, b_slot_name))
+                #self._recursive_create_widget_items(parent, topic_name, base_type_str, base_instance, False)
         return item
+        
+    def recursive_toggle(self, tree_item, state):
+        tree_item.setCheckState(0, state)
+        for i in range(0, tree_item.childCount()):
+            self.recursive_toggle(tree_item.child(i), state)
 
     def _toggle_monitoring(self, topic_name):
         item = self._tree_items[topic_name]
         if item.checkState(0):
             print("Selected: "+topic_name)
+            self.recursive_toggle(self._tree_items[topic_name], 2)
         else:
             print("Deselected: "+topic_name)
+            self.recursive_toggle(self._tree_items[topic_name], 0)
+        # TODO: For parents, set partially checked (1), fully checked (2) or empty (0) if needed!
 
     def _load_bag(self, file_name=None):
         if file_name is None:
@@ -154,7 +175,7 @@ class RosBagToDataset(QObject):
 
             for topic_name, topic_type in zip(topics,types):
                 topic_item = self._recursive_create_widget_items(
-                    self._widget.topics_tree_widget, topic_name, topic_type, roslib.message.get_message_class(topic_type) )
+                    self._widget.topics_tree_widget, topic_name, topic_type, roslib.message.get_message_class(topic_type), False)
 
             self._widget.topics_tree_widget.header().setSectionResizeMode(QHeaderView.ResizeToContents)
             self._widget.topics_tree_widget.header().setStretchLastSection(True)

@@ -2,29 +2,23 @@
 <ui version="4.0">
  <class>RosBagToDataset</class>
  <widget class="QWidget" name="RosBagToDataset">
-
   <property name="enabled">
    <bool>true</bool>
   </property>
-
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>600</width>
-    <height>400</height>
+    <height>433</height>
    </rect>
   </property>
-
   <property name="windowTitle">
    <string>BAG to Dataset</string>
   </property>
-
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
-
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0">
-
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0">
      <item>
       <widget class="QPushButton" name="load_bag_push_button">
        <property name="toolTip">
@@ -35,54 +29,48 @@
        </property>
       </widget>
      </item>
-
      <item>
       <widget class="QPushButton" name="input_conf_push_button">
-       <property name="text">
-        <string>Configue inputs</string>
-       </property>
        <property name="toolTip">
-         <string>Select data fields expected as inference inputs</string>
+        <string>Select data fields expected as inference inputs</string>
+       </property>
+       <property name="text">
+        <string>Configure inputs</string>
        </property>
       </widget>
      </item>
-
      <item>
       <widget class="QPushButton" name="output_conf_push_button">
+       <property name="toolTip">
+        <string>Select data fields expected as inference output</string>
+       </property>
        <property name="text">
         <string>Configure outputs</string>
        </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="check_conf_push_button">
        <property name="toolTip">
         <string>Select data fields expected as inference output</string>
        </property>
-      </widget>
-     </item>
-
-     <item>
-      <widget class="QPushButton" name="check_conf_push_button">
        <property name="text">
         <string>Check dataset</string>
        </property>
-       <property name="toolTip">
-        <string>Select data fields expected as inference output</string>
-       </property>
       </widget>
      </item>
-
      <item>
       <widget class="QPushButton" name="save_dls_push_button">
-       <property name="text">
-        <string>Save dataset</string>
-       </property>
        <property name="toolTip">
         <string>Save dataset in DLS compatible CSV format</string>
        </property>
+       <property name="text">
+        <string>Save dataset</string>
+       </property>
       </widget>
      </item>
-
     </layout>
    </item>
-
    <item>
     <widget class="QTreeWidget" name="topics_tree_widget">
      <property name="contextMenuPolicy">
@@ -97,9 +85,9 @@
      <property name="dragDropMode">
       <enum>QAbstractItemView::DragOnly</enum>
      </property>
-      <property name="sortingEnabled">
-       <bool>true</bool>
-      </property>
+     <property name="sortingEnabled">
+      <bool>true</bool>
+     </property>
      <column>
       <property name="text">
        <string>Topic</string>
@@ -117,16 +105,8 @@
      </column>
     </widget>
    </item>
-
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>InteractiveGraphicsView</class>
-   <extends>QGraphicsView</extends>
-   <header>rqt_graph.interactive_graphics_view</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>
