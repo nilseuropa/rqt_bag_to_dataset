@@ -7,7 +7,7 @@ import rospkg
 import rosbag
 
 from python_qt_binding import loadUi
-from python_qt_binding.QtCore import QFile, QIODevice, QObject, Qt, Signal
+from python_qt_binding.QtCore import QFile, QIODevice, QObject, Qt, Signal, QTextStream
 from python_qt_binding.QtGui import QIcon, QImage, QPainter
 from python_qt_binding.QtWidgets import QFileDialog, QGraphicsScene, QWidget, QTreeWidgetItem, QHeaderView, QMenu, QTreeWidgetItem
 
@@ -15,6 +15,8 @@ class RosBagToDataset(QObject):
 
     _deferred_fit_in_view = Signal()
     _column_names = ['topic', 'type', 'buffer_size']
+    _topic_list = []
+    _bag_filename = None
 
     def __init__(self, context):
         super(RosBagToDataset, self).__init__(context)
@@ -42,14 +44,17 @@ class RosBagToDataset(QObject):
         self._widget.load_bag_push_button.setIcon(QIcon.fromTheme('document-open'))
         self._widget.load_bag_push_button.pressed.connect(self._load_bag)
 
+        self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
+        self._widget.debug_button.pressed.connect(self._debug_function)
+
         # self._widget.input_conf_push_button.setIcon(QIcon.fromTheme('document-new'))
-        self._widget.input_conf_push_button.pressed.connect(self._configue_inputs)
+        # self._widget.input_conf_push_button.pressed.connect(self._configue_inputs)
 
         # self._widget.output_conf_push_button.setIcon(QIcon.fromTheme('applications-other'))
-        self._widget.output_conf_push_button.pressed.connect(self._configue_outputs)
+        # self._widget.output_conf_push_button.pressed.connect(self._configue_outputs)
 
         # self._widget.check_conf_push_button.setIcon(QIcon.fromTheme('applications-science'))
-        self._widget.check_conf_push_button.pressed.connect(self._check_config)
+        # self._widget.check_conf_push_button.pressed.connect(self._check_config)
 
         self._widget.save_dls_push_button.setIcon(QIcon.fromTheme('document-save-as'))
         self._widget.save_dls_push_button.pressed.connect(self._save_dataset)
@@ -72,16 +77,14 @@ class RosBagToDataset(QObject):
     def _generate_tool_tip(self, url):
         return url
 
-
-    def _configue_inputs(self):
-        pass
-
-    def _configue_outputs(self):
-        pass
-
-    def _check_config(self):
-        pass
-
+    # def _configue_inputs(self):
+    #     pass
+    #
+    # def _configue_outputs(self):
+    #     pass
+    #
+    # def _check_config(self):
+    #     pass
 
     def _extract_array_info(self, type_str):
         array_size = None
@@ -99,14 +102,15 @@ class RosBagToDataset(QObject):
         #print("Topic name is ",topic_name)
         if parent is self._widget.topics_tree_widget:
             topic_text = topic_name
+            self._topic_list.append(topic_name)
         else:
             topic_text = topic_name.split('/')[-1]
             if '[' in topic_text:
                 topic_text = topic_text[topic_text.index('['):]
-        
+
         if leaf:
-            item = TreeWidgetItem(self._toggle_monitoring, topic_name, parent)
-        else: 
+            item = TreeWidgetItem(self._toggle_selection, topic_name, parent)
+        else:
             item = QTreeWidgetItem(parent)
 
         item.setText(self._column_index['topic'], topic_text)
@@ -114,8 +118,7 @@ class RosBagToDataset(QObject):
         item.setText(self._column_index['buffer_size'], "1")
         item.setData(0, Qt.UserRole, topic_name)
         self._tree_items[topic_name] = item
-        
-        # slots: message types that compose the parent message
+
         if hasattr(message, '__slots__') and hasattr(message, '_slot_types'):
             #print("This thing has slots and slot_types")
             for slot_name, type_name in zip(message.__slots__, message._slot_types):
@@ -139,25 +142,26 @@ class RosBagToDataset(QObject):
                 for b_slot_name, b_type_name in zip(base_instance.__slots__, base_instance._slot_types):
                     #print("Complex::S/T: ", b_slot_name, "/", b_type_name)
                     self._recursive_create_widget_items(item, topic_name + '/' + b_slot_name, b_type_name, getattr(base_instance, b_slot_name))
-                #self._recursive_create_widget_items(parent, topic_name, base_type_str, base_instance, False)
+
         return item
-        
+
     def recursive_toggle(self, tree_item, state):
         tree_item.setCheckState(0, state)
         for i in range(0, tree_item.childCount()):
             self.recursive_toggle(tree_item.child(i), state)
 
-    def _toggle_monitoring(self, topic_name):
+    def _toggle_selection(self, topic_name):
         item = self._tree_items[topic_name]
         if item.checkState(0):
-            print("Selected: "+topic_name)
+            #print("Selected: "+topic_name)
             self.recursive_toggle(self._tree_items[topic_name], 2)
         else:
-            print("Deselected: "+topic_name)
+            #print("Deselected: "+topic_name)
             self.recursive_toggle(self._tree_items[topic_name], 0)
         # TODO: For parents, set partially checked (1), fully checked (2) or empty (0) if needed!
 
     def _load_bag(self, file_name=None):
+        self._topic_list = []
         if file_name is None:
             file_name, _ = QFileDialog.getOpenFileName(
                 self._widget,
@@ -167,9 +171,11 @@ class RosBagToDataset(QObject):
             if file_name is None or file_name == '':
                 return
         try:
+            self._bag_filename = file_name
             bag = rosbag.Bag(file_name)
             topics = bag.get_type_and_topic_info()[1].keys()
             types = []
+            self._bag = bag
             for i in range(0,len(bag.get_type_and_topic_info()[1].values())):
                 types.append(list(bag.get_type_and_topic_info()[1].values())[i][0])
 
@@ -188,6 +194,30 @@ class RosBagToDataset(QObject):
         self._widget.graphics_view.fitInView(self._scene.itemsBoundingRect(),
                                              Qt.KeepAspectRatio)
 
+    def _get_selected_leaves(self):
+        selected_leaves = []
+        for leaf_name in self._tree_items:
+            item = self._tree_items[leaf_name]
+            if item.checkState(0):
+                selected_leaves.append(leaf_name)
+        return selected_leaves
+
+    def _get_selected_topics(self):
+        selected_topics = []
+        for leaf in self._get_selected_leaves():
+            for topic in self._topic_list:
+                if leaf.find(topic) > -1:
+                    selected_topics.append(topic)
+
+        selected_topics = list(dict.fromkeys(selected_topics))
+        return selected_topics
+
+    ##########################
+    def _debug_function(self):
+        bag = rosbag.Bag(self._bag_filename)
+        for topic, msg, time in bag.read_messages(self._get_selected_topics()):
+            print(msg)
+    ##########################
 
     def _save_dataset(self):
         file_name, _ = QFileDialog.getSaveFileName(self._widget,
@@ -197,12 +227,14 @@ class RosBagToDataset(QObject):
         if file_name is None or file_name == '':
             return
 
-        file = QFile(file_name)
-        if not file.open(QIODevice.WriteOnly | QIODevice.Text):
+        csv_file = QFile(file_name)
+        if not csv_file.open(QIODevice.WriteOnly | QIODevice.Text):
             return
 
-        # file.write(self._dataset_file)
-        file.close()
+        stream = QTextStream(csv_file)
+        stream << 'hello'
+
+        csv_file.close()
 
 
 class TreeWidgetItem(QTreeWidgetItem):
