@@ -77,15 +77,6 @@ class RosBagToDataset(QObject):
     def _generate_tool_tip(self, url):
         return url
 
-    # def _configue_inputs(self):
-    #     pass
-    #
-    # def _configue_outputs(self):
-    #     pass
-    #
-    # def _check_config(self):
-    #     pass
-
     def _extract_array_info(self, type_str):
         array_size = None
         if '[' in type_str and type_str[-1] == ']':
@@ -194,6 +185,14 @@ class RosBagToDataset(QObject):
         self._widget.graphics_view.fitInView(self._scene.itemsBoundingRect(),
                                              Qt.KeepAspectRatio)
 
+    def _get_msg_instance(self, type_name):
+        base_type_str, array_size = self._extract_array_info(type_name)
+        try:
+            msg_instance = roslib.message.get_message_class(base_type_str)()
+        except (ValueError, TypeError):
+            msg_instance = None
+        return msg_instance
+
     def _get_selected_leaves(self):
         selected_leaves = []
         for leaf_name in self._tree_items:
@@ -208,15 +207,58 @@ class RosBagToDataset(QObject):
             for topic in self._topic_list:
                 if leaf.find(topic) > -1:
                     selected_topics.append(topic)
-
         selected_topics = list(dict.fromkeys(selected_topics))
         return selected_topics
 
+    def _leaf_is_selected(self, this_leaf):
+        for selected_leaf in self._get_selected_leaves():
+            if this_leaf == selected_leaf:
+                return True
+            else:
+                return False
+
+    def _extract_string_attributes(self, msg_instance, slot_name):
+        str_attributes = str(msg_instance.__getattribute__(slot_name)).split('\n')
+        return str_attributes
+
+    def _get_attribute_label(self, attribute):
+        return str(attribute.split(':')[:1][0]).strip()
+
     ##########################
+
+    def _get_leaf_instance(self, message, slot_name, type_name, path, leaf):
+
+        path += slot_name + '/'
+        if hasattr(message, '__slots__') and hasattr(message, '_slot_types'):
+            for slot_name, type_name in zip(message.__slots__, message._slot_types):
+                msg = self._get_msg_instance(type_name)
+                self._get_leaf_instance(msg, slot_name, type_name, path, leaf)
+        else:
+            print(path[:-1]) # TODO: return path for crossreference and data from msg
+
     def _debug_function(self):
+        # create single line record as dictionary
+        record = {}
+        record["timestamp"] = 0
+        for leaf in self._get_selected_leaves():
+            record[leaf] = 0
+
+        # open bag file
         bag = rosbag.Bag(self._bag_filename)
-        for topic, msg, time in bag.read_messages(self._get_selected_topics()):
-            print(msg)
+        # cycle through selected base topics
+        for topic, message, time in bag.read_messages(self._get_selected_topics()):
+            # traverse down the message slots
+            self._get_leaf_instance(message,'','',topic,False)
+
+
+            # export leaf attributes
+            #str_attributes = self._extract_string_attributes(leaf_instance, leaf_slot_name)
+            #print(str_attributes)
+            # cross reference leaf data path with selected items
+            # if self._leaf_is_selected(path_to_leaf):
+            # overwrite leaf data in rolling record
+            # record[path_to_leaf] = str(attribute.split(':')[:1][0])
+
     ##########################
 
     def _save_dataset(self):
@@ -232,8 +274,14 @@ class RosBagToDataset(QObject):
             return
 
         stream = QTextStream(csv_file)
-        stream << 'hello'
 
+        ## TODO: write out header from record dict instead
+        header = []
+        header.append('time')
+        header+=self._get_selected_leaves()
+        for label in header:
+            stream << label << ","
+        stream << '\n'
         csv_file.close()
 
 
