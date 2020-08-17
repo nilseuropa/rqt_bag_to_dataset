@@ -17,6 +17,7 @@ class RosBagToDataset(QObject):
     _column_names = ['topic', 'type', 'buffer_size']
     _topic_list = []
     _bag_filename = None
+    _line_record = {}
 
     def __init__(self, context):
         super(RosBagToDataset, self).__init__(context)
@@ -220,42 +221,42 @@ class RosBagToDataset(QObject):
         str_attributes = str(msg_instance.__getattribute__(slot_name)).split('\n')
         return str_attributes
 
-    def _get_attribute_label(self, attribute):
+    def _get_str_attribute_label(self, attribute):
         return str(attribute.split(':')[:1][0]).strip()
 
-    def _get_leaf_instance(self, message, slot_name, type_name, path):
+    def _get_leaf_instance(self, message, slot_name, type_name, path, attributes):
         path_to_leaf = ''
         path += slot_name + '/'
-        print()
-        print('Path so far  : ' + path)
-        print('Current slot : ' + slot_name )
-        print('Message here : ')
-        print(message)
-
+        # print()
+        # print('Path so far  : ' + path)
+        # print('Current slot : ' + slot_name )
+        # print('Message here : ')
+        # print(message)
+        # print('Attributes   : ')
+        # print(attributes)
 
         if hasattr(message, '__slots__') and hasattr(message, '_slot_types'):
             for slot_name, type_name in zip(message.__slots__, message._slot_types):
                 msg = self._get_msg_instance(type_name)
-                self._get_leaf_instance(msg, slot_name, type_name, path)
-                # print('Attributes: ')
-                # str_attributes = str(message.__getattribute__(slot_name)).split('\n')
-                # print(str_attributes)
+                str_attributes = str(message.__getattribute__(slot_name)).split('\n')
+                self._get_leaf_instance(msg, slot_name, type_name, path, str_attributes)
         else:
             path_to_leaf = path[:-1]
-            print('Data leaf is : ' + path_to_leaf)
             if path_to_leaf in self._get_selected_leaves():
-                print('Selected : YES')
-            else:
-                print('Selected : NO')
+                # print('Leaf selected: YES')
+                # print(path_to_leaf)
+                # print(attributes)
+                self._line_record[path_to_leaf] = attributes
+                print(self._line_record)
 
     ##########################
 
     def _debug_function(self):
-        # create single line record as dictionary
-        record = {}
-        record["timestamp"] = 0
+
+        # fill up single line record dictionary with labels:
+        self._line_record["timestamp"] = 0
         for leaf in self._get_selected_leaves():
-            record[leaf] = 0
+            self._line_record[leaf] = 0
 
         # open bag file
         bag = rosbag.Bag(self._bag_filename)
@@ -263,9 +264,7 @@ class RosBagToDataset(QObject):
         for topic, message, time in bag.read_messages(self._get_selected_topics()):
             # traverse down the message slots
             print('Traversing: ' + topic)
-            print(self._get_selected_leaves())
-            self._get_leaf_instance(message,'','',topic)
-            print()
+            self._get_leaf_instance(message,'','',topic,[])
 
 
     # MEMO
