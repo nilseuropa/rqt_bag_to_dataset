@@ -136,19 +136,19 @@ class RosBagToDataset(QObject):
 
         return item
 
-    def recursive_toggle(self, tree_item, state):
+    def _recursive_toggle(self, tree_item, state):
         tree_item.setCheckState(0, state)
         for i in range(0, tree_item.childCount()):
-            self.recursive_toggle(tree_item.child(i), state)
+            self._recursive_toggle(tree_item.child(i), state)
 
     def _toggle_selection(self, topic_name):
         item = self._tree_items[topic_name]
         if item.checkState(0):
             #print("Selected: "+topic_name)
-            self.recursive_toggle(self._tree_items[topic_name], 2)
+            self._recursive_toggle(self._tree_items[topic_name], 2)
         else:
             #print("Deselected: "+topic_name)
-            self.recursive_toggle(self._tree_items[topic_name], 0)
+            self._recursive_toggle(self._tree_items[topic_name], 0)
         # TODO: For parents, set partially checked (1), fully checked (2) or empty (0) if needed!
 
     def _load_bag(self, file_name=None):
@@ -211,11 +211,10 @@ class RosBagToDataset(QObject):
         return selected_topics
 
     def _leaf_is_selected(self, this_leaf):
-        for selected_leaf in self._get_selected_leaves():
-            if this_leaf == selected_leaf:
-                return True
-            else:
-                return False
+        if selected_leaf in self._get_selected_leaves():
+            return True
+        else:
+            return False
 
     def _extract_string_attributes(self, msg_instance, slot_name):
         str_attributes = str(msg_instance.__getattribute__(slot_name)).split('\n')
@@ -224,17 +223,32 @@ class RosBagToDataset(QObject):
     def _get_attribute_label(self, attribute):
         return str(attribute.split(':')[:1][0]).strip()
 
-    ##########################
-
-    def _get_leaf_instance(self, message, slot_name, type_name, path, leaf):
-
+    def _get_leaf_instance(self, message, slot_name, type_name, path):
+        path_to_leaf = ''
         path += slot_name + '/'
+        print()
+        print('Path so far  : ' + path)
+        print('Current slot : ' + slot_name )
+        print('Message here : ')
+        print(message)
+
+
         if hasattr(message, '__slots__') and hasattr(message, '_slot_types'):
             for slot_name, type_name in zip(message.__slots__, message._slot_types):
                 msg = self._get_msg_instance(type_name)
-                self._get_leaf_instance(msg, slot_name, type_name, path, leaf)
+                self._get_leaf_instance(msg, slot_name, type_name, path)
+                # print('Attributes: ')
+                # str_attributes = str(message.__getattribute__(slot_name)).split('\n')
+                # print(str_attributes)
         else:
-            print(path[:-1]) # TODO: return path for crossreference and data from msg
+            path_to_leaf = path[:-1]
+            print('Data leaf is : ' + path_to_leaf)
+            if path_to_leaf in self._get_selected_leaves():
+                print('Selected : YES')
+            else:
+                print('Selected : NO')
+
+    ##########################
 
     def _debug_function(self):
         # create single line record as dictionary
@@ -248,16 +262,21 @@ class RosBagToDataset(QObject):
         # cycle through selected base topics
         for topic, message, time in bag.read_messages(self._get_selected_topics()):
             # traverse down the message slots
-            self._get_leaf_instance(message,'','',topic,False)
+            print('Traversing: ' + topic)
+            print(self._get_selected_leaves())
+            self._get_leaf_instance(message,'','',topic)
+            print()
 
 
-            # export leaf attributes
-            #str_attributes = self._extract_string_attributes(leaf_instance, leaf_slot_name)
-            #print(str_attributes)
-            # cross reference leaf data path with selected items
-            # if self._leaf_is_selected(path_to_leaf):
-            # overwrite leaf data in rolling record
-            # record[path_to_leaf] = str(attribute.split(':')[:1][0])
+    # MEMO
+
+    # export leaf attributes
+    #str_attributes = self._extract_string_attributes(leaf_instance, leaf_slot_name)
+    #print(str_attributes)
+    # cross reference leaf data path with selected items
+    # if self._leaf_is_selected(path_to_leaf):
+    # overwrite leaf data in rolling record
+    # record[path_to_leaf] = str(attribute.split(':')[:1][0])
 
     ##########################
 
