@@ -47,8 +47,8 @@ class RosBagToDataset(QObject):
         self._widget.load_bag_push_button.setIcon(QIcon.fromTheme('document-open'))
         self._widget.load_bag_push_button.pressed.connect(self._load_bag)
 
-        self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
-        self._widget.debug_button.pressed.connect(self._debug_function)
+        # self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
+        # self._widget.debug_button.pressed.connect(self._debug_function)
 
         # self._widget.input_conf_push_button.setIcon(QIcon.fromTheme('document-new'))
         # self._widget.input_conf_push_button.pressed.connect(self._configue_inputs)
