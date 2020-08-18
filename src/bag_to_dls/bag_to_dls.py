@@ -17,6 +17,8 @@ class RosBagToDataset(QObject):
     _column_names = ['topic', 'type', 'buffer_size']
     _topic_list = []
     _bag_filename = None
+    _data_filename = None
+    _file_stream = QTextStream()
     _line_record = {}
 
     def __init__(self, context):
@@ -167,7 +169,6 @@ class RosBagToDataset(QObject):
             bag = rosbag.Bag(file_name)
             topics = bag.get_type_and_topic_info()[1].keys()
             types = []
-            self._bag = bag
             for i in range(0,len(bag.get_type_and_topic_info()[1].values())):
                 types.append(list(bag.get_type_and_topic_info()[1].values())[i][0])
 
@@ -224,16 +225,14 @@ class RosBagToDataset(QObject):
     def _get_str_attribute_label(self, attribute):
         return str(attribute.split(':')[:1][0]).strip()
 
+    def _write_line_record(self):
+        for key in self._line_record:
+            self._file_stream << str(self._line_record[key]) << ','
+        self._file_stream << '\n'
+
     def _get_leaf_instance(self, message, slot_name, type_name, path, attributes):
         path_to_leaf = ''
         path += slot_name + '/'
-        # print()
-        # print('Path so far  : ' + path)
-        # print('Current slot : ' + slot_name )
-        # print('Message here : ')
-        # print(message)
-        # print('Attributes   : ')
-        # print(attributes)
 
         if hasattr(message, '__slots__') and hasattr(message, '_slot_types'):
             for slot_name, type_name in zip(message.__slots__, message._slot_types):
@@ -243,65 +242,57 @@ class RosBagToDataset(QObject):
         else:
             path_to_leaf = path[:-1]
             if path_to_leaf in self._get_selected_leaves():
-                # print('Leaf selected: YES')
-                # print(path_to_leaf)
-                # print(attributes)
-                self._line_record[path_to_leaf] = attributes
-                print(self._line_record)
+                # update rolling record
+                self._line_record[path_to_leaf] = str(attributes[0])
+                # write record to file
+                self._write_line_record()
 
     ##########################
 
     def _debug_function(self):
+        # bag = rosbag.Bag(self._bag_filename)
+        # for topic, message, time in bag.read_messages(self._get_selected_topics()):
+        #     self._line_record['timestamp'] = str(time)
+        #     self._get_leaf_instance(message,'','',topic,[])
+        pass
 
-        # fill up single line record dictionary with labels:
-        self._line_record["timestamp"] = 0
+    ##########################
+
+    def _save_dataset(self):
+        self._data_filename, _ = QFileDialog.getSaveFileName(self._widget,
+                                                   self.tr('Save as CSV'),
+                                                   'dataset.csv',
+                                                   self.tr('Dataset file (*.csv)'))
+        if self._data_filename is None or self._data_filename == '':
+            return
+
+        # create new stream file
+        csv_file = QFile(self._data_filename)
+        if not csv_file.open(QIODevice.WriteOnly | QIODevice.Text):
+            return
+        self._file_stream = QTextStream(csv_file)
+
+        # fill up single line record dictionary with topic keys
+        self._line_record['timestamp'] = 0
         for leaf in self._get_selected_leaves():
             self._line_record[leaf] = 0
+
+        # write out header
+        for key in self._line_record:
+            self._file_stream << key << ','
+        self._file_stream << '\n'
 
         # open bag file
         bag = rosbag.Bag(self._bag_filename)
         # cycle through selected base topics
         for topic, message, time in bag.read_messages(self._get_selected_topics()):
             # traverse down the message slots
-            print('Traversing: ' + topic)
+            # print('Traversing: ' + topic)
+            self._line_record['timestamp'] = str(time)
             self._get_leaf_instance(message,'','',topic,[])
 
-
-    # MEMO
-
-    # export leaf attributes
-    #str_attributes = self._extract_string_attributes(leaf_instance, leaf_slot_name)
-    #print(str_attributes)
-    # cross reference leaf data path with selected items
-    # if self._leaf_is_selected(path_to_leaf):
-    # overwrite leaf data in rolling record
-    # record[path_to_leaf] = str(attribute.split(':')[:1][0])
-
-    ##########################
-
-    def _save_dataset(self):
-        file_name, _ = QFileDialog.getSaveFileName(self._widget,
-                                                   self.tr('Save as CSV'),
-                                                   'dataset.csv',
-                                                   self.tr('Dataset file (*.csv)'))
-        if file_name is None or file_name == '':
-            return
-
-        csv_file = QFile(file_name)
-        if not csv_file.open(QIODevice.WriteOnly | QIODevice.Text):
-            return
-
-        stream = QTextStream(csv_file)
-
-        ## TODO: write out header from record dict instead
-        header = []
-        header.append('time')
-        header+=self._get_selected_leaves()
-        for label in header:
-            stream << label << ","
-        stream << '\n'
         csv_file.close()
-
+        print('File saved: ' + self._data_filename)
 
 class TreeWidgetItem(QTreeWidgetItem):
 
