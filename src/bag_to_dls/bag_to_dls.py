@@ -7,7 +7,7 @@ import rospkg
 import rosbag
 
 from python_qt_binding import loadUi
-from python_qt_binding.QtCore import QFile, QIODevice, QObject, Qt, Signal
+from python_qt_binding.QtCore import QFile, QIODevice, QObject, Qt, Signal, QTextStream
 from python_qt_binding.QtGui import QIcon, QImage, QPainter
 from python_qt_binding.QtWidgets import QFileDialog, QGraphicsScene, QWidget, QTreeWidgetItem, QHeaderView, QMenu, QTreeWidgetItem
 
@@ -15,6 +15,11 @@ class RosBagToDataset(QObject):
 
     _deferred_fit_in_view = Signal()
     _column_names = ['topic', 'type', 'buffer_size']
+    _topic_list = []
+    _bag_filename = None
+    _data_filename = None
+    _file_stream = QTextStream()
+    _line_record = {}
 
     def __init__(self, context):
         super(RosBagToDataset, self).__init__(context)
@@ -42,14 +47,17 @@ class RosBagToDataset(QObject):
         self._widget.load_bag_push_button.setIcon(QIcon.fromTheme('document-open'))
         self._widget.load_bag_push_button.pressed.connect(self._load_bag)
 
+        # self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
+        # self._widget.debug_button.pressed.connect(self._debug_function)
+
         # self._widget.input_conf_push_button.setIcon(QIcon.fromTheme('document-new'))
-        self._widget.input_conf_push_button.pressed.connect(self._configue_inputs)
+        # self._widget.input_conf_push_button.pressed.connect(self._configue_inputs)
 
         # self._widget.output_conf_push_button.setIcon(QIcon.fromTheme('applications-other'))
-        self._widget.output_conf_push_button.pressed.connect(self._configue_outputs)
+        # self._widget.output_conf_push_button.pressed.connect(self._configue_outputs)
 
         # self._widget.check_conf_push_button.setIcon(QIcon.fromTheme('applications-science'))
-        self._widget.check_conf_push_button.pressed.connect(self._check_config)
+        # self._widget.check_conf_push_button.pressed.connect(self._check_config)
 
         self._widget.save_dls_push_button.setIcon(QIcon.fromTheme('document-save-as'))
         self._widget.save_dls_push_button.pressed.connect(self._save_dataset)
@@ -72,17 +80,6 @@ class RosBagToDataset(QObject):
     def _generate_tool_tip(self, url):
         return url
 
-
-    def _configue_inputs(self):
-        pass
-
-    def _configue_outputs(self):
-        pass
-
-    def _check_config(self):
-        pass
-
-
     def _extract_array_info(self, type_str):
         array_size = None
         if '[' in type_str and type_str[-1] == ']':
@@ -99,14 +96,15 @@ class RosBagToDataset(QObject):
         #print("Topic name is ",topic_name)
         if parent is self._widget.topics_tree_widget:
             topic_text = topic_name
+            self._topic_list.append(topic_name)
         else:
             topic_text = topic_name.split('/')[-1]
             if '[' in topic_text:
                 topic_text = topic_text[topic_text.index('['):]
-        
+
         if leaf:
-            item = TreeWidgetItem(self._toggle_monitoring, topic_name, parent)
-        else: 
+            item = TreeWidgetItem(self._toggle_selection, topic_name, parent)
+        else:
             item = QTreeWidgetItem(parent)
 
         item.setText(self._column_index['topic'], topic_text)
@@ -114,8 +112,7 @@ class RosBagToDataset(QObject):
         item.setText(self._column_index['buffer_size'], "1")
         item.setData(0, Qt.UserRole, topic_name)
         self._tree_items[topic_name] = item
-        
-        # slots: message types that compose the parent message
+
         if hasattr(message, '__slots__') and hasattr(message, '_slot_types'):
             #print("This thing has slots and slot_types")
             for slot_name, type_name in zip(message.__slots__, message._slot_types):
@@ -139,25 +136,26 @@ class RosBagToDataset(QObject):
                 for b_slot_name, b_type_name in zip(base_instance.__slots__, base_instance._slot_types):
                     #print("Complex::S/T: ", b_slot_name, "/", b_type_name)
                     self._recursive_create_widget_items(item, topic_name + '/' + b_slot_name, b_type_name, getattr(base_instance, b_slot_name))
-                #self._recursive_create_widget_items(parent, topic_name, base_type_str, base_instance, False)
+
         return item
-        
-    def recursive_toggle(self, tree_item, state):
+
+    def _recursive_toggle(self, tree_item, state):
         tree_item.setCheckState(0, state)
         for i in range(0, tree_item.childCount()):
-            self.recursive_toggle(tree_item.child(i), state)
+            self._recursive_toggle(tree_item.child(i), state)
 
-    def _toggle_monitoring(self, topic_name):
+    def _toggle_selection(self, topic_name):
         item = self._tree_items[topic_name]
         if item.checkState(0):
-            print("Selected: "+topic_name)
-            self.recursive_toggle(self._tree_items[topic_name], 2)
+            #print("Selected: "+topic_name)
+            self._recursive_toggle(self._tree_items[topic_name], 2)
         else:
-            print("Deselected: "+topic_name)
-            self.recursive_toggle(self._tree_items[topic_name], 0)
+            #print("Deselected: "+topic_name)
+            self._recursive_toggle(self._tree_items[topic_name], 0)
         # TODO: For parents, set partially checked (1), fully checked (2) or empty (0) if needed!
 
     def _load_bag(self, file_name=None):
+        self._topic_list = []
         if file_name is None:
             file_name, _ = QFileDialog.getOpenFileName(
                 self._widget,
@@ -167,6 +165,7 @@ class RosBagToDataset(QObject):
             if file_name is None or file_name == '':
                 return
         try:
+            self._bag_filename = file_name
             bag = rosbag.Bag(file_name)
             topics = bag.get_type_and_topic_info()[1].keys()
             types = []
@@ -188,22 +187,112 @@ class RosBagToDataset(QObject):
         self._widget.graphics_view.fitInView(self._scene.itemsBoundingRect(),
                                              Qt.KeepAspectRatio)
 
+    def _get_msg_instance(self, type_name):
+        base_type_str, array_size = self._extract_array_info(type_name)
+        try:
+            msg_instance = roslib.message.get_message_class(base_type_str)()
+        except (ValueError, TypeError):
+            msg_instance = None
+        return msg_instance
+
+    def _get_selected_leaves(self):
+        selected_leaves = []
+        for leaf_name in self._tree_items:
+            item = self._tree_items[leaf_name]
+            if item.checkState(0):
+                selected_leaves.append(leaf_name)
+        return selected_leaves
+
+    def _get_selected_topics(self):
+        selected_topics = []
+        for leaf in self._get_selected_leaves():
+            for topic in self._topic_list:
+                if leaf.find(topic) > -1:
+                    selected_topics.append(topic)
+        selected_topics = list(dict.fromkeys(selected_topics))
+        return selected_topics
+
+    def _leaf_is_selected(self, this_leaf):
+        if selected_leaf in self._get_selected_leaves():
+            return True
+        else:
+            return False
+
+    def _extract_string_attributes(self, msg_instance, slot_name):
+        str_attributes = str(msg_instance.__getattribute__(slot_name)).split('\n')
+        return str_attributes
+
+    def _get_str_attribute_label(self, attribute):
+        return str(attribute.split(':')[:1][0]).strip()
+
+    def _write_line_record(self):
+        for key in self._line_record:
+            self._file_stream << str(self._line_record[key]) << ','
+        self._file_stream << '\n'
+
+    def _get_leaf_instance(self, message, slot_name, type_name, path, attributes):
+        path_to_leaf = ''
+        path += slot_name + '/'
+
+        if hasattr(message, '__slots__') and hasattr(message, '_slot_types'):
+            for slot_name, type_name in zip(message.__slots__, message._slot_types):
+                msg = self._get_msg_instance(type_name)
+                str_attributes = str(message.__getattribute__(slot_name)).split('\n')
+                self._get_leaf_instance(msg, slot_name, type_name, path, str_attributes)
+        else:
+            path_to_leaf = path[:-1]
+            if path_to_leaf in self._get_selected_leaves():
+                # update rolling record
+                self._line_record[path_to_leaf] = str(attributes[0])
+                # write record to file
+                self._write_line_record()
+
+    ##########################
+
+    def _debug_function(self):
+        # bag = rosbag.Bag(self._bag_filename)
+        # for topic, message, time in bag.read_messages(self._get_selected_topics()):
+        #     self._line_record['timestamp'] = str(time)
+        #     self._get_leaf_instance(message,'','',topic,[])
+        pass
+
+    ##########################
 
     def _save_dataset(self):
-        file_name, _ = QFileDialog.getSaveFileName(self._widget,
+        self._data_filename, _ = QFileDialog.getSaveFileName(self._widget,
                                                    self.tr('Save as CSV'),
                                                    'dataset.csv',
                                                    self.tr('Dataset file (*.csv)'))
-        if file_name is None or file_name == '':
+        if self._data_filename is None or self._data_filename == '':
             return
 
-        file = QFile(file_name)
-        if not file.open(QIODevice.WriteOnly | QIODevice.Text):
+        # create new stream file
+        csv_file = QFile(self._data_filename)
+        if not csv_file.open(QIODevice.WriteOnly | QIODevice.Text):
             return
+        self._file_stream = QTextStream(csv_file)
 
-        # file.write(self._dataset_file)
-        file.close()
+        # fill up single line record dictionary with topic keys
+        self._line_record['timestamp'] = 0
+        for leaf in self._get_selected_leaves():
+            self._line_record[leaf] = 0
 
+        # write out header
+        for key in self._line_record:
+            self._file_stream << key << ','
+        self._file_stream << '\n'
+
+        # open bag file
+        bag = rosbag.Bag(self._bag_filename)
+        # cycle through selected base topics
+        for topic, message, time in bag.read_messages(self._get_selected_topics()):
+            # traverse down the message slots
+            # print('Traversing: ' + topic)
+            self._line_record['timestamp'] = str(time)
+            self._get_leaf_instance(message,'','',topic,[])
+
+        csv_file.close()
+        print('File saved: ' + self._data_filename)
 
 class TreeWidgetItem(QTreeWidgetItem):
 

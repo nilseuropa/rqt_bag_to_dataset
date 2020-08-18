@@ -29,7 +29,17 @@
        </property>
       </widget>
      </item>
-     <item>
+     <!-- <item>
+      <widget class="QPushButton" name="debug_button">
+       <property name="toolTip">
+        <string>Press for random magic</string>
+       </property>
+       <property name="text">
+        <string>Debug</string>
+       </property>
+      </widget>
+     </item> -->
+     <!-- <item>
       <widget class="QPushButton" name="input_conf_push_button">
        <property name="toolTip">
         <string>Select data fields expected as inference inputs</string>
@@ -38,8 +48,8 @@
         <string>Configure inputs</string>
        </property>
       </widget>
-     </item>
-     <item>
+     </item> -->
+     <!-- <item>
       <widget class="QPushButton" name="output_conf_push_button">
        <property name="toolTip">
         <string>Select data fields expected as inference output</string>
@@ -48,8 +58,8 @@
         <string>Configure outputs</string>
        </property>
       </widget>
-     </item>
-     <item>
+     </item> -->
+     <!-- <item>
       <widget class="QPushButton" name="check_conf_push_button">
        <property name="toolTip">
         <string>Select data fields expected as inference output</string>
@@ -58,7 +68,7 @@
         <string>Check dataset</string>
        </property>
       </widget>
-     </item>
+     </item> -->
      <item>
       <widget class="QPushButton" name="save_dls_push_button">
        <property name="toolTip">
