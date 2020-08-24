@@ -5,6 +5,7 @@ import rospy
 import roslib
 import rospkg
 import rosbag
+from rosbag_pandas import rosbag_pandas
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import QFile, QIODevice, QObject, Qt, Signal, QTextStream
@@ -47,8 +48,8 @@ class RosBagToDataset(QObject):
         self._widget.load_bag_push_button.setIcon(QIcon.fromTheme('document-open'))
         self._widget.load_bag_push_button.pressed.connect(self._load_bag)
 
-        # self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
-        # self._widget.debug_button.pressed.connect(self._debug_function)
+        self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
+        self._widget.debug_button.pressed.connect(self._debug_function)
 
         # self._widget.input_conf_push_button.setIcon(QIcon.fromTheme('document-new'))
         # self._widget.input_conf_push_button.pressed.connect(self._configue_inputs)
@@ -250,11 +251,7 @@ class RosBagToDataset(QObject):
     ##########################
 
     def _debug_function(self):
-        # bag = rosbag.Bag(self._bag_filename)
-        # for topic, message, time in bag.read_messages(self._get_selected_topics()):
-        #     self._line_record['timestamp'] = str(time)
-        #     self._get_leaf_instance(message,'','',topic,[])
-        pass
+        df = rosbag_pandas.bag_to_dataframe(self._bag_filename, self._get_selected_topics())
 
     ##########################
 
