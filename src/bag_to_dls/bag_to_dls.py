@@ -5,6 +5,7 @@ import rospy
 import roslib
 import rospkg
 import rosbag
+from rosbag_pandas import rosbag_pandas
 
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import QFile, QIODevice, QObject, Qt, Signal, QTextStream
@@ -251,7 +252,7 @@ class RosBagToDataset(QObject):
     ##########################
 
     def _debug_function(self):
-        pass
+        df = rosbag_pandas.bag_to_dataframe(self._bag_filename, self._get_selected_topics())
 
     ##########################
 
