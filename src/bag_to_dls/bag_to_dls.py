@@ -19,6 +19,7 @@ class RosBagToDataset(QObject):
     _deferred_fit_in_view = Signal()
     _column_names = ['topic', 'type', 'buffer_size']
     _topic_list = []
+    _selected_leaves = []
     _bag_filename = None
     _data_filename = None
     _file_stream = QTextStream()
@@ -51,8 +52,8 @@ class RosBagToDataset(QObject):
         self._widget.load_bag_push_button.setIcon(QIcon.fromTheme('document-open'))
         self._widget.load_bag_push_button.pressed.connect(self._load_bag)
 
-        self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
-        self._widget.debug_button.pressed.connect(self._debug_function)
+        # self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
+        # self._widget.debug_button.pressed.connect(self._debug_function)
 
         # self._widget.input_conf_push_button.setIcon(QIcon.fromTheme('document-new'))
         # self._widget.input_conf_push_button.pressed.connect(self._configue_inputs)
@@ -199,7 +200,7 @@ class RosBagToDataset(QObject):
             msg_instance = None
         return msg_instance
 
-    def _get_selected_leaves(self):
+    def _get_selected_items_list(self):
         selected_leaves = []
         for leaf_name in self._tree_items:
             item = self._tree_items[leaf_name]
@@ -209,7 +210,7 @@ class RosBagToDataset(QObject):
 
     def _get_selected_topics(self):
         selected_topics = []
-        for leaf in self._get_selected_leaves():
+        for leaf in self._get_selected_items_list():
             for topic in self._topic_list:
                 if leaf.find(topic) > -1:
                     selected_topics.append(topic)
@@ -217,7 +218,7 @@ class RosBagToDataset(QObject):
         return selected_topics
 
     def _leaf_is_selected(self, this_leaf):
-        if selected_leaf in self._get_selected_leaves():
+        if selected_leaf in self._get_selected_items_list():
             return True
         else:
             return False
@@ -234,7 +235,7 @@ class RosBagToDataset(QObject):
             self._file_stream << str(self._line_record[key]) << ','
         self._file_stream << '\n'
 
-    def _get_leaf_instance(self, message, slot_name, type_name, path, attributes):
+    def _find_leaves_fill_list(self, message, slot_name, type_name, path, attributes):
         path_to_leaf = ''
         path += slot_name + '/'
 
@@ -242,10 +243,31 @@ class RosBagToDataset(QObject):
             for slot_name, type_name in zip(message.__slots__, message._slot_types):
                 msg = self._get_msg_instance(type_name)
                 str_attributes = str(message.__getattribute__(slot_name)).split('\n')
-                self._get_leaf_instance(msg, slot_name, type_name, path, str_attributes)
+                self._find_leaves_fill_list(msg, slot_name, type_name, path, str_attributes)
         else:
             path_to_leaf = path[:-1]
-            if path_to_leaf in self._get_selected_leaves():
+            if path_to_leaf in self._get_selected_items_list():
+                self._selected_leaves.append(path_to_leaf)
+
+    def _fill_selected_leaves_list(self):
+        bag = rosbag.Bag(self._bag_filename)
+        for topic, message, time in bag.read_messages(self._get_selected_topics()):
+            self._find_leaves_fill_list(message,'','',topic,[])
+        self._selected_leaves = list(dict.fromkeys(self._selected_leaves))
+        print(self._selected_leaves)
+
+    def _export_leaf_instance(self, message, slot_name, type_name, path, attributes):
+        path_to_leaf = ''
+        path += slot_name + '/'
+
+        if hasattr(message, '__slots__') and hasattr(message, '_slot_types'):
+            for slot_name, type_name in zip(message.__slots__, message._slot_types):
+                msg = self._get_msg_instance(type_name)
+                str_attributes = str(message.__getattribute__(slot_name)).split('\n')
+                self._export_leaf_instance(msg, slot_name, type_name, path, str_attributes)
+        else:
+            path_to_leaf = path[:-1]
+            if path_to_leaf in self._selected_leaves: #elf._get_selected_items_list():
                 # update rolling record
                 self._line_record[path_to_leaf] = str(attributes[0])
                 # write record to file
@@ -254,7 +276,7 @@ class RosBagToDataset(QObject):
     ##########################
 
     def _debug_function(self):
-        df = rosbag_pandas.bag_to_dataframe(self._bag_filename, self._get_selected_topics())
+        pass
 
     ##########################
 
@@ -285,6 +307,10 @@ class RosBagToDataset(QObject):
         self._data_filename += '.' + self._data_format.lower()
 
         if self._data_format == 'CSV':
+
+            # fill up the list of selected data leaves
+            self._fill_selected_leaves_list()
+
             # create new stream file
             data_file = QFile(self._data_filename)
             if not data_file.open(QIODevice.WriteOnly | QIODevice.Text):
@@ -293,7 +319,7 @@ class RosBagToDataset(QObject):
 
             # fill up single line record dictionary with topic keys
             self._line_record['timestamp'] = 0
-            for leaf in self._get_selected_leaves():
+            for leaf in self._selected_leaves: #self._get_selected_items_list():
                 self._line_record[leaf] = 0
 
             # write out header
@@ -308,7 +334,7 @@ class RosBagToDataset(QObject):
                 # traverse down the message slots
                 # print('Traversing: ' + topic)
                 self._line_record['timestamp'] = str(time)
-                self._get_leaf_instance(message,'','',topic,[])
+                self._export_leaf_instance(message,'','',topic,[])
 
             data_file.close()
             print('File saved: ' + self._data_filename)
