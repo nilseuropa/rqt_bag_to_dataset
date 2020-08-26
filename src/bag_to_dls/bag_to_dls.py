@@ -48,8 +48,8 @@ class RosBagToDataset(QObject):
         self._widget.load_bag_push_button.setIcon(QIcon.fromTheme('document-open'))
         self._widget.load_bag_push_button.pressed.connect(self._load_bag)
 
-        # self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
-        # self._widget.debug_button.pressed.connect(self._debug_function)
+        self._widget.debug_button.setIcon(QIcon.fromTheme('applications-development'))
+        self._widget.debug_button.pressed.connect(self._debug_function)
 
         # self._widget.input_conf_push_button.setIcon(QIcon.fromTheme('document-new'))
         # self._widget.input_conf_push_button.pressed.connect(self._configue_inputs)
@@ -251,28 +251,31 @@ class RosBagToDataset(QObject):
     ##########################
 
     def _debug_function(self):
-        # bag = rosbag.Bag(self._bag_filename)
-        # for topic, message, time in bag.read_messages(self._get_selected_topics()):
-        #     self._line_record['timestamp'] = str(time)
-        #     self._get_leaf_instance(message,'','',topic,[])
         pass
 
     ##########################
 
     def _save_dataset(self):
 
-        msg = QMessageBox()
-        msg.setWindowTitle("Saving dataset...")
+        formats = ['CSV', 'PKL', 'H5', 'DLS', 'FANN']
+        supported_formats = ''
+        for f in formats:
+            supported_formats += f +';;'
 
         self._data_filename, self._data_format = QFileDialog.getSaveFileName(self._widget,
                                                    self.tr('Save dataset'),
                                                    'dataset.csv',
-                                                   self.tr("CSV;;DLS;;FANN"))
+                                                   self.tr(supported_formats[:-2]))
         if self._data_filename is None or self._data_filename == '':
             return
 
-        print(self._data_format)
-        if self._data_format != 'CSV':
+        msg = QMessageBox()
+        msg.setWindowTitle("Saving dataset...")
+
+        # temporary override
+        formats = ['CSV']
+
+        if self._data_format not in formats:
             msg.setIcon(QMessageBox.Critical)
             msg.setText("This format is not yet supported.")
             x = msg.exec_()
