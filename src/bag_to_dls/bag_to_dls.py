@@ -276,11 +276,13 @@ class RosBagToDataset(QObject):
 
         self._data_filename, self._data_format = QFileDialog.getSaveFileName(self._widget,
                                                    self.tr('Save dataset'),
-                                                   'dataset.csv',
+                                                   'dataset_name',
                                                    self.tr(supported_formats[:-2]))
 
         if self._data_filename is None or self._data_filename == '':
             return
+
+        self._data_filename += '.' + self._data_format.lower()
 
         if self._data_format == 'CSV':
             # create new stream file
@@ -309,7 +311,6 @@ class RosBagToDataset(QObject):
                 self._get_leaf_instance(message,'','',topic,[])
 
             data_file.close()
-            msg.done(1)
             print('File saved: ' + self._data_filename)
 
         elif self._data_format == 'PKL':
