@@ -5,6 +5,8 @@ import rospy
 import roslib
 import rospkg
 import rosbag
+
+from pandas import HDFStore
 from rosbag_pandas import rosbag_pandas
 
 from python_qt_binding import loadUi
@@ -311,10 +313,16 @@ class RosBagToDataset(QObject):
             print('File saved: ' + self._data_filename)
 
         elif self._data_format == 'PKL':
-            self._no_support_warning();
+            df = rosbag_pandas.bag_to_dataframe(self._bag_filename, self._get_selected_topics())
+            df.to_pickle(self._data_filename)
+            print('File saved: ' + self._data_filename)
 
         elif self._data_format == 'H5':
-            self._no_support_warning();
+            df = rosbag_pandas.bag_to_dataframe(self._bag_filename, self._get_selected_topics())
+            hdf_store = HDFStore(self._data_filename)
+            hdf_store['df'] = df
+            hdf_store.close()
+            print('File saved: ' + self._data_filename)
 
         elif self._data_format == 'DLS':
             self._no_support_warning();

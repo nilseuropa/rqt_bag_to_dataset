@@ -1,5 +1,5 @@
 # rqt_bag_to_dataset
-**rqt plugin to selectively convert data from rosbag to neural training dataset** 
+**rqt plugin to selectively convert data from rosbag to neural training dataset**
 
 :construction: work in progress :construction:
 
@@ -15,3 +15,8 @@
 ### Proposed UX flow ###
 
 ![](doc/ui.png)
+
+### Prerequisites ###
+
+* tables
+* pandas
