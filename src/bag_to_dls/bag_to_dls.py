@@ -9,7 +9,7 @@ import rosbag
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import QFile, QIODevice, QObject, Qt, Signal, QTextStream
 from python_qt_binding.QtGui import QIcon, QImage, QPainter
-from python_qt_binding.QtWidgets import QFileDialog, QGraphicsScene, QWidget, QTreeWidgetItem, QHeaderView, QMenu, QTreeWidgetItem
+from python_qt_binding.QtWidgets import QFileDialog, QGraphicsScene, QWidget, QTreeWidgetItem, QHeaderView, QMenu, QTreeWidgetItem, QMessageBox
 
 class RosBagToDataset(QObject):
 
@@ -20,6 +20,7 @@ class RosBagToDataset(QObject):
     _data_filename = None
     _file_stream = QTextStream()
     _line_record = {}
+    _data_format = 'CSV'
 
     def __init__(self, context):
         super(RosBagToDataset, self).__init__(context)
@@ -259,40 +260,52 @@ class RosBagToDataset(QObject):
     ##########################
 
     def _save_dataset(self):
-        self._data_filename, _ = QFileDialog.getSaveFileName(self._widget,
-                                                   self.tr('Save as CSV'),
+
+        msg = QMessageBox()
+        msg.setWindowTitle("Saving dataset...")
+
+        self._data_filename, self._data_format = QFileDialog.getSaveFileName(self._widget,
+                                                   self.tr('Save dataset'),
                                                    'dataset.csv',
-                                                   self.tr('Dataset file (*.csv)'))
+                                                   self.tr("CSV;;DLS;;FANN"))
         if self._data_filename is None or self._data_filename == '':
             return
 
-        # create new stream file
-        csv_file = QFile(self._data_filename)
-        if not csv_file.open(QIODevice.WriteOnly | QIODevice.Text):
-            return
-        self._file_stream = QTextStream(csv_file)
+        print(self._data_format)
+        if self._data_format != 'CSV':
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("This format is not yet supported.")
+            x = msg.exec_()
+        else:
 
-        # fill up single line record dictionary with topic keys
-        self._line_record['timestamp'] = 0
-        for leaf in self._get_selected_leaves():
-            self._line_record[leaf] = 0
+            # create new stream file
+            data_file = QFile(self._data_filename)
+            if not data_file.open(QIODevice.WriteOnly | QIODevice.Text):
+                return
+            self._file_stream = QTextStream(data_file)
 
-        # write out header
-        for key in self._line_record:
-            self._file_stream << key << ','
-        self._file_stream << '\n'
+            # fill up single line record dictionary with topic keys
+            self._line_record['timestamp'] = 0
+            for leaf in self._get_selected_leaves():
+                self._line_record[leaf] = 0
 
-        # open bag file
-        bag = rosbag.Bag(self._bag_filename)
-        # cycle through selected base topics
-        for topic, message, time in bag.read_messages(self._get_selected_topics()):
-            # traverse down the message slots
-            # print('Traversing: ' + topic)
-            self._line_record['timestamp'] = str(time)
-            self._get_leaf_instance(message,'','',topic,[])
+            # write out header
+            for key in self._line_record:
+                self._file_stream << key << ','
+            self._file_stream << '\n'
 
-        csv_file.close()
-        print('File saved: ' + self._data_filename)
+            # open bag file
+            bag = rosbag.Bag(self._bag_filename)
+            # cycle through selected base topics
+            for topic, message, time in bag.read_messages(self._get_selected_topics()):
+                # traverse down the message slots
+                # print('Traversing: ' + topic)
+                self._line_record['timestamp'] = str(time)
+                self._get_leaf_instance(message,'','',topic,[])
+
+            data_file.close()
+            msg.done(1)
+            print('File saved: ' + self._data_filename)
 
 class TreeWidgetItem(QTreeWidgetItem):
 
