@@ -256,6 +256,15 @@ class RosBagToDataset(QObject):
 
     ##########################
 
+    def _no_support_warning(self):
+        msg = QMessageBox()
+        msg.setWindowTitle("Saving dataset...")
+        msg.setIcon(QMessageBox.Critical)
+        msg.setText("This format is not yet supported.")
+        x = msg.exec_()
+
+    ##########################
+
     def _save_dataset(self):
 
         formats = ['CSV', 'PKL', 'H5', 'DLS', 'FANN']
@@ -267,21 +276,11 @@ class RosBagToDataset(QObject):
                                                    self.tr('Save dataset'),
                                                    'dataset.csv',
                                                    self.tr(supported_formats[:-2]))
+
         if self._data_filename is None or self._data_filename == '':
             return
 
-        msg = QMessageBox()
-        msg.setWindowTitle("Saving dataset...")
-
-        # temporary override
-        formats = ['CSV']
-
-        if self._data_format not in formats:
-            msg.setIcon(QMessageBox.Critical)
-            msg.setText("This format is not yet supported.")
-            x = msg.exec_()
-        else:
-
+        if self._data_format == 'CSV':
             # create new stream file
             data_file = QFile(self._data_filename)
             if not data_file.open(QIODevice.WriteOnly | QIODevice.Text):
@@ -310,6 +309,21 @@ class RosBagToDataset(QObject):
             data_file.close()
             msg.done(1)
             print('File saved: ' + self._data_filename)
+
+        elif self._data_format == 'PKL':
+            self._no_support_warning();
+
+        elif self._data_format == 'H5':
+            self._no_support_warning();
+
+        elif self._data_format == 'DLS':
+            self._no_support_warning();
+
+        elif self._data_format == 'FANN':
+            self._no_support_warning();
+
+        else:
+            self._no_support_warning();
 
 class TreeWidgetItem(QTreeWidgetItem):
 
