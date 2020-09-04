@@ -213,7 +213,7 @@ class RosBagToDataset(QObject):
         selected_leaves = []
         for leaf_name in self._tree_items:
             item = self._tree_items[leaf_name]
-            if item.checkState(0):
+            if item.checkState(self._column_index['is_input']) or item.checkState(self._column_index['is_output']):
                 selected_leaves.append(leaf_name)
         return selected_leaves
 
