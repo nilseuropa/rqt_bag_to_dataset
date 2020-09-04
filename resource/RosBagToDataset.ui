@@ -18,7 +18,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0">
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0">
      <item>
       <widget class="QPushButton" name="load_bag_push_button">
        <property name="toolTip">
@@ -29,46 +29,6 @@
        </property>
       </widget>
      </item>
-     <!-- <item>
-      <widget class="QPushButton" name="debug_button">
-       <property name="toolTip">
-        <string>Press for random magic</string>
-       </property>
-       <property name="text">
-        <string>Debug</string>
-       </property>
-      </widget>
-     </item> -->
-     <!-- <item>
-      <widget class="QPushButton" name="input_conf_push_button">
-       <property name="toolTip">
-        <string>Select data fields expected as inference inputs</string>
-       </property>
-       <property name="text">
-        <string>Configure inputs</string>
-       </property>
-      </widget>
-     </item> -->
-     <!-- <item>
-      <widget class="QPushButton" name="output_conf_push_button">
-       <property name="toolTip">
-        <string>Select data fields expected as inference output</string>
-       </property>
-       <property name="text">
-        <string>Configure outputs</string>
-       </property>
-      </widget>
-     </item> -->
-     <!-- <item>
-      <widget class="QPushButton" name="check_conf_push_button">
-       <property name="toolTip">
-        <string>Select data fields expected as inference output</string>
-       </property>
-       <property name="text">
-        <string>Check dataset</string>
-       </property>
-      </widget>
-     </item> -->
      <item>
       <widget class="QPushButton" name="save_dls_push_button">
        <property name="toolTip">
@@ -111,6 +71,16 @@
      <column>
       <property name="text">
        <string>Buffer size</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Input</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Output</string>
       </property>
      </column>
     </widget>

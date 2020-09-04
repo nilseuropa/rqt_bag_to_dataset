@@ -12,12 +12,12 @@ from rosbag_pandas import rosbag_pandas
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import QFile, QIODevice, QObject, Qt, Signal, QTextStream
 from python_qt_binding.QtGui import QIcon, QImage, QPainter
-from python_qt_binding.QtWidgets import QFileDialog, QGraphicsScene, QWidget, QTreeWidgetItem, QHeaderView, QMenu, QTreeWidgetItem, QMessageBox
+from python_qt_binding.QtWidgets import QFileDialog, QGraphicsScene, QWidget, QTreeWidgetItem, QHeaderView, QMenu, QMessageBox, QDialog
 
 class RosBagToDataset(QObject):
 
     _deferred_fit_in_view = Signal()
-    _column_names = ['topic', 'type', 'buffer_size']
+    _column_names = ['topic', 'type', 'buffer_size', 'is_input', 'is_output']
     _topic_list = []
     _selected_leaves = []
     _bag_filename = None
@@ -112,9 +112,14 @@ class RosBagToDataset(QObject):
         else:
             item = QTreeWidgetItem(parent)
 
+        item.setFlags(item.flags() | Qt.ItemIsEditable)
         item.setText(self._column_index['topic'], topic_text)
         item.setText(self._column_index['type'], type_name)
         item.setText(self._column_index['buffer_size'], "1")
+        item.setText(self._column_index['is_input'], "")
+        item.setText(self._column_index['is_output'], "")
+        item.setCheckState(self._column_index['is_input'], Qt.Unchecked)
+        item.setCheckState(self._column_index['is_output'], Qt.Unchecked)
         item.setData(0, Qt.UserRole, topic_name)
         self._tree_items[topic_name] = item
 
@@ -151,12 +156,16 @@ class RosBagToDataset(QObject):
 
     def _toggle_selection(self, topic_name):
         item = self._tree_items[topic_name]
-        if item.checkState(0):
-            #print("Selected: "+topic_name)
-            self._recursive_toggle(self._tree_items[topic_name], 2)
-        else:
-            #print("Deselected: "+topic_name)
-            self._recursive_toggle(self._tree_items[topic_name], 0)
+        if item.checkState(self._column_index['is_input']):
+            print(topic_name+" is selected as Input")
+        if item.checkState(self._column_index['is_output']):
+            print(topic_name+" is selected as Output")    
+        #if item.checkState(0):
+        #    print("Selected: "+topic_name)
+        #    #self._recursive_toggle(self._tree_items[topic_name], 2)
+        #else:
+        #    print("Deselected: "+topic_name)
+        #    #self._recursive_toggle(self._tree_items[topic_name], 0)
         # TODO: For parents, set partially checked (1), fully checked (2) or empty (0) if needed!
 
     def _load_bag(self, file_name=None):
@@ -289,6 +298,7 @@ class RosBagToDataset(QObject):
 
     ##########################
 
+
     def _save_dataset(self):
 
         formats = ['CSV', 'PKL', 'H5', 'DLS', 'FANN']
@@ -366,7 +376,7 @@ class TreeWidgetItem(QTreeWidgetItem):
         super(TreeWidgetItem, self).__init__(parent)
         self._check_state_changed_callback = check_state_changed_callback
         self._topic_name = topic_name
-        self.setCheckState(0, Qt.Unchecked)
+        #self.setCheckState(0, Qt.Unchecked)
 
     def setData(self, column, role, value):
         if role == Qt.CheckStateRole:
